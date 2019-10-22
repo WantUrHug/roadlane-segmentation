@@ -47,7 +47,7 @@ def UpSampler(input, num_outputs = None):
 
 	return net
 
-def built_gcn(input, num_classes = 2):
+def build_gcn(input, num_classes = 2):
 	'''
 	构建整个网络结构.
 	'''
@@ -89,5 +89,5 @@ def built_gcn(input, num_classes = 2):
 if __name__ == "__main__":
 
 	a = tf.placeholder(tf.float32, [10, 1920, 1056, 3])
-	b = built_gcn(a)
+	b = build_gcn(a)
 	print(b)
