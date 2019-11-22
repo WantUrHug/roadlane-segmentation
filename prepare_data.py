@@ -4,7 +4,7 @@ import os, shutil
 #先要把他们命名好然后存放到 data 和 label 对应
 #的文件夹中
 sparse_dir = "D:\\GitFile\\FuHua\\新建文件夹"
-dst_dir = "D:\\GitFile\\roadlane-segmentation\\imgs"
+dst_dir = "D:\\GitFile\\roadlane-segmentation-imgs"
 
 #原本是先创建 data 和 label 文件夹，然后在他们之下再分别都创建
 #train 和 test，后来发现这样子做不方便，因为在输入时需要成对给入网络
@@ -51,7 +51,7 @@ if not os.path.exists(test_label_dir):
 	os.mkdir(test_label_dir)
 
 
-train_size = 0.8
+train_size = 0.9
 total = 0
 item_namels = []
 for item in os.listdir(sparse_dir):

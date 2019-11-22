@@ -19,8 +19,8 @@ MAXSTEP = 1000
 CHECK_STEP = 5
 SAVE_STEP = 200
 
-train_dir = "D:\\GitFile\\roadlane-segmentation\\imgs\\train"
-test_dir = "D:\\GitFile\\roadlane-segmentation\\imgs\\test"
+train_dir = "D:\\GitFile\\roadlane-segmentation-imgs\\train"
+test_dir = "D:\\GitFile\\roadlane-segmentation-imgs\\test"
 model_dir = "D:\\GitFile\\roadlane-segmentation\\model"
 train_data_handle = utils.handle_getter(train_dir, IMG_H, IMG_W)(utils.get_data)
 test_data_handle = utils.handle_getter(test_dir, IMG_H, IMG_W)(utils.get_data)

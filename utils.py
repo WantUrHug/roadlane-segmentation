@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from PIL import Image
 import cv2
 import os, subprocess, time
 
@@ -20,17 +21,19 @@ def get_data(train_dir, image_h, image_w):
 	for item in os.listdir(data_dir):
 		#item_dir = os.path.join(train_data, i)
 		image = cv2.imread(os.path.join(data_dir, item), -1)
+		image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 		label = cv2.imread(os.path.join(label_dir, item), -1)
+		label = cv2.cvtColor(label, cv2.COLOR_BGR2RGB)
 		#image = cv2.resize(image, (0.5, 0.5))
 		#label = cv2.resize(image, (0.5, 0.5))
-		image, label = data_augumentation((image, label), (image_h, image_w), ".")
+		image, label = data_augumentation((image, label), (image_h, image_w))
 		#shape = image.shape
 		#if not (shape[0] == image_h and shape[1] == image_w):
 		#	image = cv2.reshape(image, (image_h, image_w))
 		#	label = cv2.reshape(label, (image_h, image_h))
 		yield image, to_one_hot(label, label_values, boolean = False)
 
-def data_augumentation(input, output_size, method = "RANDOM_CROP"):
+def data_augumentation(input, output_size, method = "RANDOM_FLIP"):
 
 	if method == "RANDOM_CROP":
 		image, label = input
@@ -41,8 +44,15 @@ def data_augumentation(input, output_size, method = "RANDOM_CROP"):
 		random_w = np.random.randint(0, input_w - output_size[1])
 
 		return image[random_h: random_h + output_h, random_w: random_w + output_w, :], label[random_h: random_h + output_h, random_w: random_w + output_w, :]
-	else:
-		return input
+	elif method == "RANDOM_FLIP":
+		image, label = input
+		if np.random.randint(2):#0 or 1
+			image = cv2.flip(image, 0)
+			label = cv2.flip(label, 0)
+		if np.random.randint(2):
+			image = cv2.flip(image, 1)
+			label = cv2.flip(label, 1)
+		return image, label
 
 
 def handle_getter(*args, **kwargs):
@@ -117,9 +127,9 @@ def cal_global_accuracy(logits, labels):
 					cnt += 1
 	return float(cnt)/float(total)
 
-def weighted_loss(logits, labels, weight = [1.0, 10.0]):
+def weighted_loss(logits, labels, weight = [1.0, 150.0]):
 
-	weight = tf.constant(weight)/sum(weight)
+	weight = tf.constant(weight)
 	loss = -tf.log(tf.nn.softmax(logits))*labels
 	loss = loss*weight
 	loss = tf.reduce_mean(loss)
@@ -133,11 +143,20 @@ def accuracy(logits, labels):
 
 	return acc
 
+def _count(label, label_value = [[0, 0, 0], [128, 0, 0]]):
+	cnt = 0
+	for i in range(label.shape[0]):
+		for j in range(label.shape[1]):
+			if label[i, j, 0] == 128:
+				cnt += 1
+
+	print(cnt)
 if __name__ == "__main__":
 	test_label = "D:\\GitFile\\roadlane-segmentation\\imgs\\train\\label\\00001.png"
 	i = cv2.imread(test_label, -1)
 	i = cv2.cvtColor(i, cv2.COLOR_BGR2RGB)
 	r = to_one_hot(i)
-	print(r)
+	#print(r)
+	_count(i)
 
 	
