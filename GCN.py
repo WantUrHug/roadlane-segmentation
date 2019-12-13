@@ -8,6 +8,7 @@ import os
 def DownSampler(input, num_output):
 	'''
 	下采样单元，用卷积层和池化层拼接即可
+	num_output: 输出的特征数
 	'''
 
 	net = conv2d(input, num_output, kernel_size = (3, 3), strides = (1, 1), padding = "SAME")
@@ -84,10 +85,11 @@ def build_gcn(input, num_classes = 2):
 	BR1 = BRblock(ADD1)
 	US1 = UpSampler(BR1)
 
-	return BRblock(US1)
-
+	output =  BRblock(US1)
+	return tf.nn.sigmoid(output)
+	
 if __name__ == "__main__":
 
-	a = tf.placeholder(tf.float32, [10, 1920, 1056, 3])
-	b = build_gcn(a)
+	a = tf.placeholder(tf.float32, [8, 640, 1280, 3])
+	b = build_gcn(a,1)
 	print(b)

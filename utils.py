@@ -4,6 +4,8 @@ from PIL import Image
 import cv2
 import os, subprocess, time
 
+#tf.enable_eager_execution()
+
 def get_data(train_dir, image_h, image_w):
 	'''
 	从文件夹中获取一张图片
@@ -22,8 +24,10 @@ def get_data(train_dir, image_h, image_w):
 		#item_dir = os.path.join(train_data, i)
 		image = cv2.imread(os.path.join(data_dir, item), -1)
 		image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+		image = cv2.resize(image, (640, 1280))
 		label = cv2.imread(os.path.join(label_dir, item), -1)
 		label = cv2.cvtColor(label, cv2.COLOR_BGR2RGB)
+		label = cv2.resize(label, (640, 1280))
 		#image = cv2.resize(image, (0.5, 0.5))
 		#label = cv2.resize(image, (0.5, 0.5))
 		image, label = data_augumentation((image, label), (image_h, image_w))
@@ -67,39 +71,38 @@ def handle_getter(*args, **kwargs):
 
 def to_one_hot(label, label_values = [[0, 0, 0], [128, 0, 0]], boolean = True):
 	'''
-	一种方法是得到一个由 True False 组成的矩阵，但我不确定这样子可以与其他
-	以数值为元素的矩阵进行计算吗？
+	原本是 depth = 2，如今觉得既然是二分类那么只需要有一个标的物的概率就可以了，有时两个数值
+	反而对于一些指标的计算更加困难。
+	boolean：可以选择输出的结果是布尔值还是数值
 	'''
-	semantic_map = []
-	if boolean:
-		for colour in label_values:
-			equality = np.equal(label, colour)
-			class_map = np.all(equality, axis = -1)
-			semantic_map.append(class_map)
-		semantic_map = np.stack(semantic_map, axis = -1)
-		return semantic_map
-	else:	
-		for colour in label_values:
-			equality = np.equal(label, colour)
 
-			out = np.zeros(equality.shape[:2], dtype = np.float)
-			class_map = np.all(equality, axis = -1, out = out)
-			semantic_map.append(out)
-		semantic_map = np.stack(semantic_map, axis = -1)
-		return semantic_map
-	
+	#semantic_map = []
+	#if boolean:
+	#	for colour in label_values:
+	#		equality = np.equal(label, colour)
+	#		class_map = np.all(equality, axis = -1)
+	#		semantic_map.append(class_map)
+	#	semantic_map = np.stack(semantic_map, axis = -1)
+	#	return semantic_map
+	#else:	
+	#	for colour in label_values:
+	#		equality = np.equal(label, colour)
+	#		out = np.zeros(equality.shape[:2], dtype = np.float)
+	#		class_map = np.all(equality, axis = -1, out = out)
+	#		semantic_map.append(out)
+	#	semantic_map = np.stack(semantic_map, axis = -1)
+	#	return semantic_map	
 	#print(label.shape)
-	'''
-	shape1, shape2 = label.shape[:2] 
-	result = np.zeros([shape1, shape2, len(label_values)])
-	for i in range(shape1):
-		for j in range(shape2):
-			for k in range(len(label_values)):
-				if (label[i][j] == label_values[k]).all():	
-					result[i, j][k] = 1
-					break
-	return result
-	'''
+	if boolean:
+		equality = np.equal(label, label_values[1])
+		class_map = np.all(equality, axis = -1)
+		return np.expand_dims(class_map, axis = -1)
+	else:
+		equality = np.equal(label, label_values[1])
+		out = np.zeros(equality.shape[:2], dtype = np.float)
+		class_map = np.all(equality, axis = -1, out = out)
+		return np.expand_dims(class_map, axis = -1)
+	
 def label_before_cal_loss(input):
 	'''
 	将图片的 label 以及网络计算输出的结果，给到计算交叉熵之前，需要把原本四维的
@@ -127,18 +130,49 @@ def cal_global_accuracy(logits, labels):
 					cnt += 1
 	return float(cnt)/float(total)
 
-def weighted_loss(logits, labels, weight = [1.0, 150.0]):
-
-	weight = tf.constant(weight)
-	loss = -tf.log(tf.nn.softmax(logits))*labels
-	loss = loss*weight
+def weighted_loss_v1(logits, labels, weight = [1.0, 40.0]):
+	'''
+	原先使用的损失函数，后续发现，语义分割模型不适用交叉熵这个适用于分类的损失函数，
+	所以导致使用后的效果也挺差的。最好是用，每个像素点的预测类是否与真实类相同，相同为0
+	不同为1，然后乘上对应的权重，作为一个最小化的目标。
+	'''
+	#weight = tf.constant(weight)#(2,)
+	loss = -(tf.log(logits)*labels*weight[0] + tf.log(1 - logits)*(1 - labels)*weight[1]) 
+	#loss = loss*weight
 	loss = tf.reduce_mean(loss)
+	#之前的版本，因为改了一下改成了
 
 	return loss
 
-def accuracy(logits, labels):
+def weighted_loss_v2(logits, labels, weight = [1.0, 150.0]):
+	'''
+	尚未成功的损失函数，还有bug无法在 train.py 中使用，原因未详。
+	'''
+	print("lossing")
+	weight = tf.constant(weight, dtype = tf.float32)# (2,)
+	print(weight)
+	logits = tf.argmax(logits, 1)#(N, )
+	print(logits)
+	logits = tf.one_hot(logits, depth = 2)#(N, 2)
+	print(logits)
+	minus_logits = tf.constant([1,1], dtype = tf.float32) - logits
+	#labels = tf.argmax(labels, 1)
+	print(minus_logits)
+	print(labels)
+	loss = minus_logits*labels#(N, 2)*(N, 2)=(N, 2)
+	loss = loss*weight#(N, 2)*(2,) = (N, 2)
+	print(loss)
+	loss = tf.reduce_mean(loss)*2#s
+	print(loss)
+	return loss
 
-	correct = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
+def total_accuracy(logits, labels):
+	'''
+	全局准确率.修改之后 depth 只有1，也就是标的物的概率.
+	'''
+	logits = tf.rint(logits)
+
+	correct = tf.equal(logits, labels)
 	acc = tf.reduce_mean(tf.cast(correct, tf.float32))
 
 	return acc
@@ -151,12 +185,15 @@ def _count(label, label_value = [[0, 0, 0], [128, 0, 0]]):
 				cnt += 1
 
 	print(cnt)
+
 if __name__ == "__main__":
-	test_label = "D:\\GitFile\\roadlane-segmentation\\imgs\\train\\label\\00001.png"
+
+	test_label = "D:\\GitFile\\roadlane-segmentation-imgs\\train\\label\\1.png"
 	i = cv2.imread(test_label, -1)
 	i = cv2.cvtColor(i, cv2.COLOR_BGR2RGB)
-	r = to_one_hot(i)
-	#print(r)
-	_count(i)
+	#print(i)
+	r = to_one_hot(i, boolean = False)
+	print(r.sum())
+	#_count(i)
 
 	
