@@ -9,6 +9,7 @@ def test_pic(img_path, model_dir):
 	lastest_model = ckpt.model_checkpoint_path
 
 	img = Image.open(img_path)
+	img = img.resize((640, 1280))
 	#img.show()
 
 	with tf.Session() as sess:
@@ -26,12 +27,16 @@ def test_pic(img_path, model_dir):
 		X = graph.get_tensor_by_name("X:0")
 		inference = tf.get_collection("infrence")[0]
 
-		img = np.array(img, dtype = np.float32)/255.0
-		output = sess.run(inference, feed_dict = {X: [img,img,img,img]})
+		#img = np.array(img, dtype = np.float32)/255.0
+		img = (np.array(img, dtype = np.float32)/255.0-0.5)*2
+		output = sess.run(inference, feed_dict = {X: [img,img,img,img,img,img,img,img]})
 
 		return tf.argmax(output[0], 2).eval(session = sess)
 
 def label2img(label, label_value = [[0, 0, 0], [255, 255, 255]]):
+	'''
+	将多标签通道图给转化成二值化的图像来观察。选择 #FFFFFF 白色更直观。
+	'''
 
 	cnt = 0
 	output = np.zeros([label.shape[0], label.shape[1], 3], dtype = np.uint8)
@@ -45,14 +50,17 @@ def label2img(label, label_value = [[0, 0, 0], [255, 255, 255]]):
 	return output
 
 if __name__ == "__main__":
-	im = "imgs/test/data/00080.png"
-	output = test_pic(im, "model")
+	#test_dir = "D:\\GitFile\\roadlane-segmentation-imgs\\test\\data\\"
+	#test_dir = "E:\\train"
+	for filename in ["D:\\YZlogs\\20191212\\31.png"]:#os.listdir(test_dir):
+		#im = os.path.join(test_dir, filename)
+		output = test_pic(filename, "model\\v3")
 	#print(output.shape)
-	out= label2img(output)
-	print(out.shape)
+		out= label2img(output)
+	#print(out.shape)
 	#cv2.imshow(out, "output")
 	#cv2.waitKeys(0)
 	#print(out)
-	img = Image.fromarray(out)
-	img.show()
-	img.save("output01.jpg")
+		img = Image.fromarray(out)
+		img.show()
+		#img.save("output1\\output_%s.jpg"%filename)
