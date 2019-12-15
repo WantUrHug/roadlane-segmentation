@@ -130,40 +130,34 @@ def cal_global_accuracy(logits, labels):
 					cnt += 1
 	return float(cnt)/float(total)
 
-def weighted_loss_v1(logits, labels, weight = [1.0, 40.0]):
+def weighted_loss_v1(logits, labels, weight = [20.0, 1]):
 	'''
 	原先使用的损失函数，后续发现，语义分割模型不适用交叉熵这个适用于分类的损失函数，
 	所以导致使用后的效果也挺差的。最好是用，每个像素点的预测类是否与真实类相同，相同为0
 	不同为1，然后乘上对应的权重，作为一个最小化的目标。
+	而且在使用的时候容易变成 nan，原因不详
 	'''
 	#weight = tf.constant(weight)#(2,)
-	loss = -(tf.log(logits)*labels*weight[0] + tf.log(1 - logits)*(1 - labels)*weight[1]) 
+	labels = tf.rint(labels)
+	loss = -(tf.log(logits + 10E-6)*labels*weight[0] + tf.log(1 - logits + 10E-6)*(1 - labels)*weight[1]) 
 	#loss = loss*weight
 	loss = tf.reduce_mean(loss)
 	#之前的版本，因为改了一下改成了
 
 	return loss
 
-def weighted_loss_v2(logits, labels, weight = [1.0, 150.0]):
-	'''
-	尚未成功的损失函数，还有bug无法在 train.py 中使用，原因未详。
-	'''
-	print("lossing")
-	weight = tf.constant(weight, dtype = tf.float32)# (2,)
-	print(weight)
-	logits = tf.argmax(logits, 1)#(N, )
-	print(logits)
-	logits = tf.one_hot(logits, depth = 2)#(N, 2)
-	print(logits)
-	minus_logits = tf.constant([1,1], dtype = tf.float32) - logits
-	#labels = tf.argmax(labels, 1)
-	print(minus_logits)
-	print(labels)
-	loss = minus_logits*labels#(N, 2)*(N, 2)=(N, 2)
-	loss = loss*weight#(N, 2)*(2,) = (N, 2)
-	print(loss)
-	loss = tf.reduce_mean(loss)*2#s
-	print(loss)
+def weighted_loss_v2(logits, labels, weight = [1.0, 30.0]):
+
+	logits = tf.rint(logits)#把介于 0 和 1之间的概率值转化为更接近的整数，0 或者 1
+
+	#如果 logits = 0, label = 1，那么说明是判断错了，原本是线但是没有找出来，loss 就是下面第一项
+	#如果 logits = 1, label = 0，也是判断错了，原本是北京但是没找出来，loss 是对应着第二项
+	#如果是 0、0 或者 1、1 的情况那么就这一个像素点所提供的损失是 0
+	print(logits.shape, labels.shape)
+	ones = tf.ones_like(logits)
+	loss= (ones - logits)*labels*weight[0] + logits*(ones - labels)*weight[1]
+	loss = tf.reduce_mean(loss)
+
 	return loss
 
 def total_accuracy(logits, labels):
@@ -193,7 +187,7 @@ if __name__ == "__main__":
 	i = cv2.cvtColor(i, cv2.COLOR_BGR2RGB)
 	#print(i)
 	r = to_one_hot(i, boolean = False)
-	print(r.sum())
+	print(r.shape)
 	#_count(i)
 
 	
