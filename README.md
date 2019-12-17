@@ -1,16 +1,7 @@
 # roadlane-segmentation
-用语义分割的方式来做车道线检测
-
-首先是数据处理，我是用 Anaconda 配置 labelme 逐张进行批注的，每张图片会得到一个json文件，包含了一些必要的信息，将他们保存在同个文件夹中，如下</br>
-D:</br>
-├─00001.json</br>
-├─00002.json</br>
-├─00003.json</br>
-把 build.bat 放在同个路径下，先 activate labelme，然后就执行这个批处理文件即可</br>
-D:</br>
-├─00001_json (subdir)</br>
-├─00001.json</br>
-├─00002_json (subdir)</br>
-├─00002.json</br>
-├─00003_json (subdir)</br>
-├─00003.json</br>
+用语义分割的方式来做车道线检测 <br>
+原本的想法是使用语义分割的方式，来识别经过逆透视变换之后的俯视图中的车道线，参考了[这篇论文](https://arxiv.org/abs/1812.05914)中提到的模型。论文中是是多分类，对于我的需求只需要划分车道线和背景即可，所以输出的通道数为1，之后通过设置阈值可以提高测试图片测试结果的表现。
+![原始图片](https://github.com/WantUrHug/roadlane-segmentation/blob/master/images/origin.png "原始图片")
+![模型输出](https://github.com/WantUrHug/roadlane-segmentation/blob/master/images/threshold_0.5.png "阈值为0.5")
+![模型输出](https://github.com/WantUrHug/roadlane-segmentation/blob/master/images/threshold_0.7.png "阈值为0.7")
+![模型输出](https://github.com/WantUrHug/roadlane-segmentation/blob/master/images/threshold_0.9.png "阈值为0.9")
